@@ -22,50 +22,60 @@ export class TodoController {
     this.deleteTodoUseCase = new DeleteTodoUseCase(todoRepository)
   }
 
+  private getUserId(c: Context): string {
+    const user = c.get('user') as { id: string }
+    return user.id
+  }
+
   async getAll(c: Context) {
-    const todos = await this.getAllTodosUseCase.execute()
+    const userId = this.getUserId(c)
+    const todos = await this.getAllTodosUseCase.execute(userId)
 
     return c.json(todos)
   }
 
   async getById(c: Context) {
+    const userId = this.getUserId(c)
     const id = Number(c.req.param('id'))
-    const todo = await this.getTodoByIdUseCase.execute(id)
-    
+    const todo = await this.getTodoByIdUseCase.execute(id, userId)
+
     if (!todo) {
       return c.json({ error: 'Todo not found' }, 404)
     }
-    
+
     return c.json(todo)
   }
 
   async create(c: Context) {
+    const userId = this.getUserId(c)
     const body = await c.req.json()
-    const todo = await this.createTodoUseCase.execute(body)
-    
+    const todo = await this.createTodoUseCase.execute(body, userId)
+
     return c.json(todo, 201)
   }
 
   async update(c: Context) {
+    const userId = this.getUserId(c)
     const id = Number(c.req.param('id'))
     const body = await c.req.json()
-    const todo = await this.updateTodoUseCase.execute(id, body)
-    
+    const todo = await this.updateTodoUseCase.execute(id, body, userId)
+
     if (!todo) {
       return c.json({ error: 'Todo not found' }, 404)
     }
-    
+
     return c.json(todo)
   }
 
   async delete(c: Context) {
+    const userId = this.getUserId(c)
     const id = Number(c.req.param('id'))
-    const deleted = await this.deleteTodoUseCase.execute(id)
-    
+    const deleted = await this.deleteTodoUseCase.execute(id, userId)
+
     if (!deleted) {
       return c.json({ error: 'Todo not found' }, 404)
     }
-    
+
     return c.body(null, 204)
   }
 }

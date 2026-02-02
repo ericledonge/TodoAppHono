@@ -4,7 +4,7 @@ import type { Todo, UpdateTodoInput } from '../../domain/entities/Todo'
 export class UpdateTodoUseCase {
   constructor(private todoRepository: ITodoRepository) {}
 
-  async execute(id: number, input: UpdateTodoInput): Promise<Todo | null> {
-    return this.todoRepository.update(id, input)
+  async execute(id: number, input: UpdateTodoInput, userId: string): Promise<Todo | null> {
+    return this.todoRepository.update(id, input, userId)
   }
 }

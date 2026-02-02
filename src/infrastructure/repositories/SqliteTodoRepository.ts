@@ -9,6 +9,7 @@ interface TodoRow {
   title: string
   description: string | null
   completed: number
+  user_id: string
   created_at: string
   updated_at: string
 }
@@ -26,29 +27,30 @@ export class SqliteTodoRepository implements ITodoRepository {
       title: row.title,
       description: row.description,
       completed: row.completed === 1,
+      userId: row.user_id,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     }
   }
 
-  async findAll(): Promise<Todo[]> {
-    const rows = this.db.prepare('SELECT * FROM todos ORDER BY created_at DESC').all() as TodoRow[]
+  async findAll(userId: string): Promise<Todo[]> {
+    const rows = this.db.prepare('SELECT * FROM todos WHERE user_id = ? ORDER BY created_at DESC').all(userId) as TodoRow[]
 
     return rows.map(this.mapRowToTodo)
   }
 
-  async findById(id: number): Promise<Todo | null> {
-    const row = this.db.prepare('SELECT * FROM todos WHERE id = ?').get(id) as TodoRow | undefined
+  async findById(id: number, userId: string): Promise<Todo | null> {
+    const row = this.db.prepare('SELECT * FROM todos WHERE id = ? AND user_id = ?').get(id, userId) as TodoRow | undefined
 
     return row ? this.mapRowToTodo(row) : null
   }
 
-  async create(input: CreateTodoInput): Promise<Todo> {
+  async create(input: CreateTodoInput, userId: string): Promise<Todo> {
     const result = this.db.prepare(
-      'INSERT INTO todos (title, description) VALUES (?, ?)'
-    ).run(input.title, input.description ?? null)
+      'INSERT INTO todos (title, description, user_id) VALUES (?, ?, ?)'
+    ).run(input.title, input.description ?? null, userId)
 
-    const todo = await this.findById(result.lastInsertRowid as number)
+    const todo = await this.findById(result.lastInsertRowid as number, userId)
 
     if (!todo) {
       throw new Error('Failed to create todo')
@@ -57,8 +59,8 @@ export class SqliteTodoRepository implements ITodoRepository {
     return todo
   }
 
-  async update(id: number, input: UpdateTodoInput): Promise<Todo | null> {
-    const existing = await this.findById(id)
+  async update(id: number, input: UpdateTodoInput, userId: string): Promise<Todo | null> {
+    const existing = await this.findById(id, userId)
     if (!existing) return null
 
     const title = input.title ?? existing.title
@@ -66,16 +68,16 @@ export class SqliteTodoRepository implements ITodoRepository {
     const completed = input.completed !== undefined ? (input.completed ? 1 : 0) : (existing.completed ? 1 : 0)
 
     this.db.prepare(`
-      UPDATE todos 
+      UPDATE todos
       SET title = ?, description = ?, completed = ?, updated_at = datetime('now')
-      WHERE id = ?
-    `).run(title, description, completed, id)
+      WHERE id = ? AND user_id = ?
+    `).run(title, description, completed, id, userId)
 
-    return this.findById(id)
+    return this.findById(id, userId)
   }
 
-  async delete(id: number): Promise<boolean> {
-    const result = this.db.prepare('DELETE FROM todos WHERE id = ?').run(id)
+  async delete(id: number, userId: string): Promise<boolean> {
+    const result = this.db.prepare('DELETE FROM todos WHERE id = ? AND user_id = ?').run(id, userId)
 
     return result.changes > 0
   }

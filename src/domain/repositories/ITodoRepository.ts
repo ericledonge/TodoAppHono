@@ -1,9 +1,9 @@
 import { Todo, CreateTodoInput, UpdateTodoInput } from '../entities/Todo'
 
 export interface ITodoRepository {
-  findAll(): Promise<Todo[]>
-  findById(id: number): Promise<Todo | null>
-  create(input: CreateTodoInput): Promise<Todo>
-  update(id: number, input: UpdateTodoInput): Promise<Todo | null>
-  delete(id: number): Promise<boolean>
+  findAll(userId: string): Promise<Todo[]>
+  findById(id: number, userId: string): Promise<Todo | null>
+  create(input: CreateTodoInput, userId: string): Promise<Todo>
+  update(id: number, input: UpdateTodoInput, userId: string): Promise<Todo | null>
+  delete(id: number, userId: string): Promise<boolean>
 }
