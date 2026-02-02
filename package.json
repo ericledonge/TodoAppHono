@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsup src/index.ts --format esm --target node22 --clean",
     "start": "node dist/index.js",
     "test": "NODE_ENV=test vitest"
   },
@@ -18,6 +18,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.17",
+    "tsup": "^8.5.1",
     "tsx": "^4.7.1",
     "typescript": "^5.8.3",
     "vitest": "^4.0.18"
