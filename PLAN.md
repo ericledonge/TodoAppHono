@@ -402,37 +402,188 @@ curl http://localhost:3000/api/todos
 ## Checklist Phase 7
 
 ### Étape 1: Système de migrations
-- [ ] 7.1 Créer le dossier `migrations/`
-- [ ] 7.2 Créer `migrations/001_initial_schema.sql`
-- [ ] 7.3 Créer `migrations/002_add_user_id_to_todos.sql`
-- [ ] 7.4 Créer `migrations/003_better_auth_tables.sql`
-- [ ] 7.5 Créer `src/infrastructure/database/migrator.ts`
-- [ ] 7.6 Modifier `database.ts` pour utiliser le migrator
+- [x] 7.1 Créer le dossier `migrations/`
+- [x] 7.2 Créer `migrations/001_initial_schema.sql`
+- [x] 7.3 Créer `migrations/002_add_user_id_to_todos.sql`
+- [x] 7.4 Créer `migrations/003_better_auth_tables.sql`
+- [x] 7.5 Créer `src/infrastructure/database/migrator.ts`
+- [x] 7.6 Modifier `database.ts` pour utiliser le migrator
 
 ### Étape 2: Better Auth
-- [ ] 7.7 Installer better-auth (déjà fait)
-- [ ] 7.8 Compléter la config auth si nécessaire
+- [x] 7.7 Installer better-auth
+- [x] 7.8 Compléter la config auth (baseURL)
 
 ### Étape 3: Middleware et intégration
-- [ ] 7.9 Créer `authMiddleware.ts`
-- [ ] 7.10 Intégrer dans `app.ts`
+- [x] 7.9 Créer `authMiddleware.ts`
+- [x] 7.10 Intégrer dans `app.ts`
 
 ### Étape 4: Mise à jour du domaine
-- [ ] 7.11 Ajouter userId à l'entité Todo
-- [ ] 7.12 Mettre à jour ITodoRepository
-- [ ] 7.13 Mettre à jour SqliteTodoRepository
-- [ ] 7.14 Mettre à jour les Use Cases
-- [ ] 7.15 Mettre à jour TodoController
+- [x] 7.11 Ajouter userId à l'entité Todo
+- [x] 7.12 Mettre à jour ITodoRepository
+- [x] 7.13 Mettre à jour SqliteTodoRepository
+- [x] 7.14 Mettre à jour les Use Cases
+- [x] 7.15 Mettre à jour TodoController
 
 ### Étape 5: Tests
-- [ ] 7.16 Tester inscription/connexion
-- [ ] 7.17 Vérifier que les routes todos sont protégées
+- [x] 7.16 Tester inscription/connexion
+- [x] 7.17 Vérifier que les routes todos sont protégées
+
+---
+
+# Phase 8: Déploiement Railway
+
+## Objectif
+Déployer le backend sur Railway avec support des environnements multiples (staging/production).
+
+## Pourquoi Railway?
+- **~5$/mois** (plan Hobby + usage)
+- Interface web intuitive
+- Volumes persistants pour SQLite
+- Environnements multiples intégrés
+- Déploiement simple via CLI ou GitHub
+
+## 8.1 Préparer le code
+
+### Modifier `src/infrastructure/database/database.ts`
+Ajouter le support de la variable `DATABASE_PATH` pour Railway :
+
+```typescript
+import Database, { Database as DatabaseType } from 'better-sqlite3'
+import path from 'path'
+import { runMigrations } from './migrator'
+
+const isTest = process.env.NODE_ENV === 'test'
+
+export function createDatabase(dbPath?: string): DatabaseType {
+  // Railway utilise DATABASE_PATH pour pointer vers le volume
+  const finalPath = dbPath ?? process.env.DATABASE_PATH ?? (isTest ? ':memory:' : path.join(process.cwd(), 'data', 'todos.db'))
+  const db = new Database(finalPath)
+
+  // Exécuter les migrations
+  const migrationsPath = path.join(process.cwd(), 'migrations')
+  runMigrations(db, migrationsPath)
+
+  return db
+}
+
+export const db = createDatabase()
+```
+
+## 8.2 Déploiement initial
+
+### Créer un compte Railway
+1. Aller sur https://railway.app
+2. Se connecter avec GitHub
+
+### Installer le CLI
+```bash
+npm install -g @railway/cli
+railway login
+```
+
+### Initialiser le projet
+```bash
+cd backend
+railway init
+# Choisir "Empty Project" ou lier à un repo GitHub
+```
+
+### Créer un volume pour SQLite
+Dans le Dashboard Railway :
+1. Aller dans ton service
+2. Cliquer **"Add Volume"**
+3. Mount path: `/data`
+4. Nom: `sqlite-data`
+
+### Configurer les variables d'environnement
+Dans Railway Dashboard → Variables :
+```
+DATABASE_PATH=/data/todos.db
+BETTER_AUTH_BASE_URL=https://[ton-app].up.railway.app
+NODE_ENV=production
+```
+
+### Déployer
+```bash
+railway up
+```
+
+## 8.3 Environnements multiples
+
+### Créer l'environnement staging
+```bash
+railway environment create staging
+```
+
+### Déployer sur staging
+```bash
+railway environment staging
+railway up
+```
+
+### Déployer en production
+```bash
+railway environment production
+railway up
+```
+
+### Variables par environnement
+
+| Variable | Local | Staging | Production |
+|----------|-------|---------|------------|
+| `DATABASE_PATH` | `data/todos.db` | `/data/todos.db` | `/data/todos.db` |
+| `BETTER_AUTH_BASE_URL` | `http://localhost:3000` | `https://todo-staging.up.railway.app` | `https://todo-prod.up.railway.app` |
+| `NODE_ENV` | `development` | `staging` | `production` |
+
+## 8.4 Fichiers à modifier
+
+| Fichier | Action |
+|---------|--------|
+| `src/infrastructure/database/database.ts` | Ajouter support `DATABASE_PATH` |
+
+## 8.5 Commandes de vérification
+
+```bash
+# Health check en production
+curl https://[ton-app].up.railway.app/health
+
+# Inscription
+curl -X POST https://[ton-app].up.railway.app/api/auth/sign-up/email \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password123", "name": "Test"}'
+
+# Connexion
+curl -X POST https://[ton-app].up.railway.app/api/auth/sign-in/email \
+  -H "Content-Type: application/json" \
+  -d '{"email": "test@example.com", "password": "password123"}' \
+  -c cookies.txt
+
+# Créer un todo
+curl -X POST https://[ton-app].up.railway.app/api/todos \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"title": "Mon premier todo en prod!"}'
+```
+
+## Checklist Phase 8
+
+- [ ] 8.1 Modifier `database.ts` pour supporter `DATABASE_PATH`
+- [ ] 8.2 Créer un compte Railway
+- [ ] 8.3 Installer le CLI Railway
+- [ ] 8.4 Initialiser le projet (`railway init`)
+- [ ] 8.5 Créer un volume (`/data`)
+- [ ] 8.6 Configurer les variables d'environnement
+- [ ] 8.7 Déployer (`railway up`)
+- [ ] 8.8 Tester le health check en production
+- [ ] 8.9 Tester l'authentification en production
+- [ ] 8.10 (Optionnel) Créer l'environnement staging
 
 ---
 
 # Évolutions Futures
 
 1. ~~**Authentification** - Ajouter JWT ou sessions~~ ✅ Phase 7
-2. **Filtrage** - Filtrer par statut (completed/pending)
-3. **Pagination** - Paginer la liste des todos
-4. **Frontend** - Connecter une app React/Vue
+2. ~~**Déploiement** - Déployer sur Railway~~ ✅ Phase 8
+3. **Filtrage** - Filtrer par statut (completed/pending)
+4. **Pagination** - Paginer la liste des todos
+5. **Frontend** - Connecter une app React/Vue
